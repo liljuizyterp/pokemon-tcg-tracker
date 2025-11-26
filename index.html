@@ -8,25 +8,63 @@
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
-    <main class="min-h-screen flex items-center justify-center">
-      <div class="text-center">
-        <h1 class="text-4xl font-bold text-slate-900">Pokemon TCG Tracker</h1>
-        <p class="mt-4 text-lg text-slate-600">Track your Pokémon card values and trades</p>
-        <div class="mt-8 p-4 bg-slate-100 rounded-lg">
-          <p class="text-sm text-slate-700">Firebase Config Status:</p>
-          <pre id="config" class="mt-2 text-xs text-left bg-white p-3 rounded border border-slate-300 overflow-auto"></pre>
+    <div id="app">
+      <header class="bg-gradient-to-r from-red-600 to-red-700 text-white p-6 shadow-lg">
+        <div class="max-w-6xl mx-auto">
+          <h1 class="text-4xl font-bold flex items-center gap-3">
+            🎴 Pokemon TCG Tracker
+          </h1>
+          <p class="mt-2 text-red-100">Track your Pokémon card collection, values, and trades</p>
         </div>
-      </div>
-    </main>
+      </header>
+
+      <main class="max-w-6xl mx-auto p-6">
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-600">
+            <h2 class="text-2xl font-bold text-slate-900 mb-2">📊 Track Cards</h2>
+            <p class="text-slate-600">Manage your collection and monitor card values over time</p>
+          </div>
+          <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-600">
+            <h2 class="text-2xl font-bold text-slate-900 mb-2">💰 Market Insights</h2>
+            <p class="text-slate-600">Get real-time pricing data and market trends</p>
+          </div>
+          <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-600">
+            <h2 class="text-2xl font-bold text-slate-900 mb-2">🔄 Trade Network</h2>
+            <p class="text-slate-600">Connect with other collectors and complete trades</p>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-lg shadow-md p-8">
+          <h2 class="text-3xl font-bold text-slate-900 mb-6">Getting Started</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+              <h3 class="text-xl font-semibold text-slate-900 mb-4">Your Collection</h3>
+              <div class="bg-slate-50 rounded p-4 text-center text-slate-500 min-h-[200px] flex items-center justify-center">
+                <p>Collection management interface coming soon</p>
+              </div>
+            </div>
+            <div>
+              <h3 class="text-xl font-semibold text-slate-900 mb-4">Recent Activity</h3>
+              <div class="bg-slate-50 rounded p-4 text-center text-slate-500 min-h-[200px] flex items-center justify-center">
+                <p>Activity feed and trades coming soon</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="bg-slate-900 text-white p-6 mt-12">
+        <div class="max-w-6xl mx-auto text-center">
+          <p class="text-slate-400">© 2025 Pokemon TCG Tracker. All rights reserved.</p>
+        </div>
+      </footer>
+    </div>
+
     <script src="/env.js"></script>
     <script>
-      // Display Firebase config from window.__ENV__
-      const configDisplay = document.getElementById('config');
-      if (typeof window.__ENV__ !== 'undefined') {
-        configDisplay.textContent = JSON.stringify(window.__ENV__, null, 2);
-      } else {
-        configDisplay.textContent = 'Error: window.__ENV__ not loaded';
-      }
+      // Firebase config is now available at window.__ENV__
+      // You can use it when building out the app features
+      console.log('Firebase config loaded:', typeof window.__ENV__ !== 'undefined');
     </script>
   </body>
 </html>
