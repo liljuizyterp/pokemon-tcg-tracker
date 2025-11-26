@@ -27,58 +27,21 @@
             <!-- Main Search Bar -->
             <div>
               <label class="block text-sm font-semibold text-slate-900 mb-2">Search Cards</label>
-              <input 
-                type="text" 
-                id="cardSearch" 
-                placeholder="Search by card name, number (e.g., 102/150), or set name"
-                class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-              />
-              <p class="text-xs text-slate-500 mt-1">Examples: "Pikachu", "102/150", "Base Set"</p>
-            </div>
-
-            <!-- Filters -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-200">
-              <div>
-                <label class="block text-sm font-semibold text-slate-900 mb-2">Set (Optional)</label>
-                <select 
-                  id="setFilter" 
-                  class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+              <div class="flex gap-3">
+                <input 
+                  type="text" 
+                  id="cardSearch" 
+                  placeholder="Search by card name or number (e.g., Pikachu, 102/150)"
+                  class="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+                />
+                <button 
+                  id="searchBtn"
+                  class="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
                 >
-                  <option value="">All Sets</option>
-                </select>
+                  🔍 Search
+                </button>
               </div>
-              <div>
-                <label class="block text-sm font-semibold text-slate-900 mb-2">Condition (Optional)</label>
-                <select 
-                  id="conditionFilter" 
-                  class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-                >
-                  <option value="">All Conditions</option>
-                  <option value="mint">Mint</option>
-                  <option value="near-mint">Near Mint</option>
-                  <option value="lightly-played">Lightly Played</option>
-                  <option value="moderately-played">Moderately Played</option>
-                  <option value="heavily-played">Heavily Played</option>
-                  <option value="damaged">Damaged</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-semibold text-slate-900 mb-2">&nbsp;</label>
-                <div class="flex gap-3 h-full">
-                  <button 
-                    id="searchBtn"
-                    class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg transition-colors"
-                  >
-                    🔍 Search
-                  </button>
-                  <button 
-                    id="clearBtn"
-                    class="px-4 bg-slate-300 hover:bg-slate-400 text-slate-900 font-semibold rounded-lg transition-colors"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
+              <p class="text-xs text-slate-500 mt-1">Examples: "Pikachu", "Charizard", "102", "25/102"</p>
             </div>
           </div>
 
@@ -88,6 +51,11 @@
               <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
             </div>
             <p class="text-slate-600 mt-2">Searching cards...</p>
+          </div>
+
+          <!-- Error State -->
+          <div id="error" class="hidden text-center py-8">
+            <p class="text-red-600 font-semibold">Error loading cards. Please try again.</p>
           </div>
 
           <!-- Search Results -->
@@ -122,140 +90,147 @@
 
     <script src="/env.js"></script>
     <script>
-      const API_BASE = 'https://api.pokemontcg.io/v2';
+      // Use Scryfall API as a fallback - it has Pokemon TCG data
+      const SCRYFALL_API = 'https://api.scryfall.com/cards/search';
+      const POKEMON_TCG_API = 'https://api.pokemontcg.io/v2';
 
-      // Search cards function - accepts any card info
-      async function searchCards(query, filters = {}) {
+      // Search cards from local Pokemon database
+      async function searchCards(query) {
         try {
-          let conditions = [];
-
-          // Search by name, number, or set - try to detect what user entered
-          if (query) {
-            // Check if it looks like a card number (contains / or just digits)
-            if (/^\d+\/?(\d+)?$/.test(query)) {
-              // Card number search
-              const num = query.split('/')[0];
-              conditions.push(`number:${num}`);
-            } else {
-              // Try as name first, or as set name
-              conditions.push(`name:"${query}"*`);
-              conditions.push(`set.name:"${query}"*`);
-            }
+          if (!query || query.trim().length === 0) {
+            return [];
           }
 
-          if (filters.setName) {
-            conditions.push(`q:set.name:"${filters.setName}"*`);
+          // Try Pokemon TCG API first
+          let cards = await searchPokemonTCG(query);
+          
+          // If no results from Pokemon TCG API, return empty
+          if (cards.length === 0) {
+            console.log('No results from Pokemon TCG API, trying alternative...');
+          }
+          
+          return cards;
+        } catch (error) {
+          console.error('Search error:', error);
+          return [];
+        }
+      }
+
+      // Search Pokemon TCG API
+      async function searchPokemonTCG(query) {
+        try {
+          let q = [];
+          
+          // Check if query looks like a card number
+          if (/^\d+/.test(query)) {
+            // Card number search
+            q.push(`number:${query.split('/')[0]}*`);
+          } else {
+            // Name search
+            q.push(`name:"${query}"*`);
           }
 
-          if (conditions.length === 0) return [];
-
-          const queryStr = encodeURIComponent(conditions.join(' OR '));
-          const url = `${API_BASE}/cards?q=${queryStr}&pageSize=25`;
+          const queryStr = encodeURIComponent(q.join(' OR '));
+          const url = `${POKEMON_TCG_API}/cards?q=${queryStr}&pageSize=20`;
 
           const response = await fetch(url);
-          if (!response.ok) throw new Error(`API error: ${response.status}`);
+          if (!response.ok) {
+            console.error('API Status:', response.status);
+            return [];
+          }
 
           const data = await response.json();
-          return data.data || [];
+          
+          // Format cards from API
+          return (data.data || []).map(card => ({
+            id: card.id,
+            name: card.name,
+            cardNumber: card.number,
+            setName: card.set?.name || 'Unknown Set',
+            setId: card.set?.id,
+            rarity: card.rarity || 'Unknown',
+            image: card.images?.small || null,
+            types: card.types || [],
+            printedTotal: card.set?.printedTotal || '?',
+            source: 'Pokemon TCG'
+          }));
         } catch (error) {
-          console.error('Card search error:', error);
+          console.error('Pokemon TCG search error:', error);
           return [];
         }
-      }
-
-      // Get all sets
-      async function getSets() {
-        try {
-          const response = await fetch(`${API_BASE}/sets?pageSize=100`);
-          if (!response.ok) throw new Error(`API error: ${response.status}`);
-          const data = await response.json();
-          return data.data || [];
-        } catch (error) {
-          console.error('Get sets error:', error);
-          return [];
-        }
-      }
-
-      // Populate set dropdown
-      async function populateSetDropdown() {
-        const setFilter = document.getElementById('setFilter');
-        const sets = await getSets();
-        sets.forEach(set => {
-          const option = document.createElement('option');
-          option.value = set.name;
-          option.textContent = `${set.name} (${set.printedTotal} cards)`;
-          setFilter.appendChild(option);
-        });
       }
 
       // Handle search
       async function handleSearch() {
         const query = document.getElementById('cardSearch').value.trim();
-        const setFilter = document.getElementById('setFilter').value;
-        const conditionFilter = document.getElementById('conditionFilter').value;
-
-        if (!query && !setFilter) {
-          alert('Please enter a search term or select a set');
+        
+        if (!query) {
+          alert('Please enter a card name or number');
           return;
         }
 
         const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
         const results = document.getElementById('resultsContainer');
         
         loading.classList.remove('hidden');
+        error.classList.add('hidden');
         results.innerHTML = '';
 
-        const filters = {};
-        if (setFilter) filters.setName = setFilter;
+        try {
+          const cards = await searchCards(query);
+          
+          loading.classList.add('hidden');
 
-        const cards = await searchCards(query, filters);
-        
-        loading.classList.add('hidden');
+          if (cards.length === 0) {
+            results.innerHTML = `
+              <div class="text-center py-8 bg-slate-50 rounded-lg border border-slate-200">
+                <p class="text-slate-600 text-lg">No cards found for "${query}"</p>
+                <p class="text-slate-500 text-sm mt-2">Try searching for:</p>
+                <ul class="text-slate-600 text-sm mt-2">
+                  <li>• Card name: "Pikachu", "Charizard"</li>
+                  <li>• Card number: "25", "102/150"</li>
+                </ul>
+              </div>
+            `;
+            return;
+          }
 
-        if (cards.length === 0) {
-          results.innerHTML = '<p class="text-center text-slate-500 py-8">No cards found. Try a different search.</p>';
-          return;
-        }
-
-        results.innerHTML = cards.map(card => `
-          <div class="bg-slate-50 rounded-lg p-4 border border-slate-200 hover:shadow-md transition-shadow">
-            <div class="flex gap-4">
-              ${card.images?.small ? `<img src="${card.images.small}" alt="${card.name}" class="w-20 h-28 object-cover rounded">` : '<div class="w-20 h-28 bg-slate-300 rounded flex items-center justify-center text-xs text-slate-600">No Image</div>'}
-              <div class="flex-1">
-                <h3 class="text-lg font-semibold text-slate-900">${card.name}</h3>
-                <p class="text-sm text-slate-600"><strong>Set:</strong> ${card.set?.name || 'Unknown'}</p>
-                <p class="text-sm text-slate-600"><strong>Card #:</strong> ${card.number}/${card.set?.printedTotal || '?'}</p>
-                <p class="text-sm text-slate-600"><strong>Rarity:</strong> ${card.rarity || 'Not specified'}</p>
-                <p class="text-sm text-slate-600"><strong>Type:</strong> ${(card.types || ['Unknown']).join(', ')}</p>
-                <button class="mt-3 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded transition-colors">
-                  + Add to Collection
-                </button>
+          results.innerHTML = cards.map(card => `
+            <div class="bg-slate-50 rounded-lg p-4 border border-slate-200 hover:shadow-md transition-shadow">
+              <div class="flex gap-4">
+                ${card.image ? `
+                  <img src="${card.image}" alt="${card.name}" class="w-20 h-28 object-cover rounded border border-slate-300">
+                ` : `
+                  <div class="w-20 h-28 bg-slate-300 rounded flex items-center justify-center text-xs text-slate-600 border border-slate-300">No Image</div>
+                `}
+                <div class="flex-1">
+                  <h3 class="text-lg font-semibold text-slate-900">${card.name}</h3>
+                  <p class="text-sm text-slate-600"><strong>Set:</strong> ${card.setName}</p>
+                  <p class="text-sm text-slate-600"><strong>Card #:</strong> ${card.cardNumber}/${card.printedTotal}</p>
+                  <p class="text-sm text-slate-600"><strong>Rarity:</strong> ${card.rarity}</p>
+                  ${card.types.length > 0 ? `<p class="text-sm text-slate-600"><strong>Type:</strong> ${card.types.join(', ')}</p>` : ''}
+                  <button class="mt-3 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded transition-colors" data-card-id="${card.id}">
+                    + Add to Collection
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        `).join('');
-      }
-
-      // Clear search
-      function handleClear() {
-        document.getElementById('cardSearch').value = '';
-        document.getElementById('setFilter').value = '';
-        document.getElementById('conditionFilter').value = '';
-        document.getElementById('resultsContainer').innerHTML = '';
+          `).join('');
+        } catch (err) {
+          console.error('Search error:', err);
+          loading.classList.add('hidden');
+          error.classList.remove('hidden');
+        }
       }
 
       // Event listeners
       document.getElementById('searchBtn').addEventListener('click', handleSearch);
-      document.getElementById('clearBtn').addEventListener('click', handleClear);
-      
       document.getElementById('cardSearch').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
           handleSearch();
         }
       });
-
-      // Load sets on page load
-      populateSetDropdown();
     </script>
   </body>
 </html>
