@@ -2,6 +2,11 @@
 const fs = require('fs');
 const path = require('path');
 
+// Load .env.local for local development
+if (fs.existsSync('.env.local')) {
+  require('dotenv').config({ path: '.env.local' });
+}
+
 const env = {
   FIREBASE_API_KEY: process.env.FIREBASE_API_KEY || '',
   FIREBASE_AUTH_DOMAIN: process.env.FIREBASE_AUTH_DOMAIN || '',
