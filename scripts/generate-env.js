@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config({ path: '.env.local' });
 
 const env = {
   FIREBASE_API_KEY: process.env.FIREBASE_API_KEY || '',
