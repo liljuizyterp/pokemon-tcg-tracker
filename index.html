@@ -19,7 +19,67 @@
       </header>
 
       <main class="max-w-6xl mx-auto p-6">
-        <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Search Section -->
+        <section class="bg-white rounded-lg shadow-md p-8 mb-8">
+          <h2 class="text-3xl font-bold text-slate-900 mb-6">Add to Your Collection</h2>
+          
+          <div class="space-y-4 mb-6">
+            <!-- Search Bar -->
+            <div>
+              <label class="block text-sm font-semibold text-slate-900 mb-2">Card Search</label>
+              <input 
+                type="text" 
+                id="cardSearch" 
+                placeholder="Search by card name, number (e.g., 102/150), or set name"
+                class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+              />
+              <p class="text-xs text-slate-500 mt-1">Examples: "Pikachu", "102/150", "Base Set"</p>
+            </div>
+
+            <!-- Filters -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-slate-900 mb-2">Set (Optional)</label>
+                <select 
+                  id="setFilter" 
+                  class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+                >
+                  <option value="">All Sets</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-slate-900 mb-2">Card Number (Optional)</label>
+                <input 
+                  type="text" 
+                  id="cardNumberFilter" 
+                  placeholder="e.g., 102"
+                  class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+                />
+              </div>
+            </div>
+
+            <!-- Search Button -->
+            <button 
+              id="searchBtn"
+              class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg transition-colors"
+            >
+              Search Cards
+            </button>
+          </div>
+
+          <!-- Loading State -->
+          <div id="loading" class="hidden text-center py-8">
+            <p class="text-slate-600">Searching cards...</p>
+          </div>
+
+          <!-- Search Results -->
+          <div id="resultsContainer" class="space-y-4">
+            <!-- Results will appear here -->
+          </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-600">
             <h2 class="text-2xl font-bold text-slate-900 mb-2">📊 Track Cards</h2>
             <p class="text-slate-600">Manage your collection and monitor card values over time</p>
@@ -33,24 +93,6 @@
             <p class="text-slate-600">Connect with other collectors and complete trades</p>
           </div>
         </section>
-
-        <section class="bg-white rounded-lg shadow-md p-8">
-          <h2 class="text-3xl font-bold text-slate-900 mb-6">Getting Started</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div>
-              <h3 class="text-xl font-semibold text-slate-900 mb-4">Your Collection</h3>
-              <div class="bg-slate-50 rounded p-4 text-center text-slate-500 min-h-[200px] flex items-center justify-center">
-                <p>Collection management interface coming soon</p>
-              </div>
-            </div>
-            <div>
-              <h3 class="text-xl font-semibold text-slate-900 mb-4">Recent Activity</h3>
-              <div class="bg-slate-50 rounded p-4 text-center text-slate-500 min-h-[200px] flex items-center justify-center">
-                <p>Activity feed and trades coming soon</p>
-              </div>
-            </div>
-          </div>
-        </section>
       </main>
 
       <footer class="bg-slate-900 text-white p-6 mt-12">
@@ -61,10 +103,77 @@
     </div>
 
     <script src="/env.js"></script>
-    <script>
-      // Firebase config is now available at window.__ENV__
-      // You can use it when building out the app features
-      console.log('Firebase config loaded:', typeof window.__ENV__ !== 'undefined');
+    <script type="module">
+      import { searchCards, getSets } from './src/cardSearch.js';
+
+      // Load sets on page load
+      async function loadSets() {
+        const setFilter = document.getElementById('setFilter');
+        const sets = await getSets();
+        sets.forEach(set => {
+          const option = document.createElement('option');
+          option.value = set.name;
+          option.textContent = `${set.name} (${set.printedTotal})`;
+          setFilter.appendChild(option);
+        });
+      }
+
+      // Search handler
+      async function handleSearch() {
+        const query = document.getElementById('cardSearch').value.trim();
+        const setFilter = document.getElementById('setFilter').value;
+        const cardNumber = document.getElementById('cardNumberFilter').value.trim();
+
+        if (!query && !setFilter && !cardNumber) {
+          alert('Please enter a search term or filter');
+          return;
+        }
+
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('resultsContainer');
+        
+        loading.classList.remove('hidden');
+        results.innerHTML = '';
+
+        const filters = {};
+        if (setFilter) filters.setName = setFilter;
+        if (cardNumber) filters.cardNumber = cardNumber;
+
+        const cards = await searchCards(query, filters);
+        
+        loading.classList.add('hidden');
+
+        if (cards.length === 0) {
+          results.innerHTML = '<p class="text-center text-slate-500 py-8">No cards found. Try a different search.</p>';
+          return;
+        }
+
+        results.innerHTML = cards.map(card => `
+          <div class="bg-slate-50 rounded-lg p-4 border border-slate-200 hover:shadow-md transition-shadow">
+            <div class="flex gap-4">
+              ${card.images?.small ? `<img src="${card.images.small}" alt="${card.name}" class="w-20 h-28 object-cover rounded">` : '<div class="w-20 h-28 bg-slate-300 rounded"></div>'}
+              <div class="flex-1">
+                <h3 class="text-lg font-semibold text-slate-900">${card.name}</h3>
+                <p class="text-sm text-slate-600">Set: ${card.set?.name || 'Unknown'}</p>
+                <p class="text-sm text-slate-600">Card #: ${card.number}/${card.set?.printedTotal || '?'}</p>
+                <p class="text-sm text-slate-600">Rarity: ${card.rarity || 'Not specified'}</p>
+                <button class="mt-3 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded transition-colors">
+                  Add to Collection
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Event listeners
+      document.getElementById('searchBtn').addEventListener('click', handleSearch);
+      document.getElementById('cardSearch').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleSearch();
+      });
+
+      // Load sets on page load
+      loadSets();
     </script>
   </body>
 </html>
