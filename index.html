@@ -24,22 +24,34 @@
           <h2 class="text-3xl font-bold text-slate-900 mb-6">Add to Your Collection</h2>
           
           <div class="space-y-4 mb-6">
-            <!-- Search Bar -->
+            <!-- Search Type Selection -->
             <div>
-              <label class="block text-sm font-semibold text-slate-900 mb-2">Card Search</label>
-              <input 
-                type="text" 
-                id="cardSearch" 
-                placeholder="Search by card name, number (e.g., 102/150), or set name"
-                class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-              />
-              <p class="text-xs text-slate-500 mt-1">Examples: "Pikachu", "102/150", "Base Set"</p>
+              <label class="block text-sm font-semibold text-slate-900 mb-2">Search By</label>
+              <select 
+                id="searchType" 
+                class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+              >
+                <option value="name">Card Name (e.g., "Pikachu")</option>
+                <option value="number">Card Number (e.g., "102/150")</option>
+                <option value="set">Set Name (e.g., "Base Set")</option>
+              </select>
             </div>
 
-            <!-- Filters -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Dynamic Input/Select -->
+            <div id="inputContainer">
+              <label class="block text-sm font-semibold text-slate-900 mb-2">Card Name</label>
+              <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="Search by card name"
+                class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+              />
+            </div>
+
+            <!-- Optional Filters -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-200">
               <div>
-                <label class="block text-sm font-semibold text-slate-900 mb-2">Set (Optional)</label>
+                <label class="block text-sm font-semibold text-slate-900 mb-2">Filter by Set (Optional)</label>
                 <select 
                   id="setFilter" 
                   class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -48,7 +60,7 @@
                 </select>
               </div>
               <div>
-                <label class="block text-sm font-semibold text-slate-900 mb-2">Card Number (Optional)</label>
+                <label class="block text-sm font-semibold text-slate-900 mb-2">Filter by Card # (Optional)</label>
                 <input 
                   type="text" 
                   id="cardNumberFilter" 
@@ -59,17 +71,28 @@
             </div>
 
             <!-- Search Button -->
-            <button 
-              id="searchBtn"
-              class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg transition-colors"
-            >
-              Search Cards
-            </button>
+            <div class="flex gap-3 pt-2">
+              <button 
+                id="searchBtn"
+                class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg transition-colors"
+              >
+                🔍 Search
+              </button>
+              <button 
+                id="clearBtn"
+                class="px-6 bg-slate-300 hover:bg-slate-400 text-slate-900 font-semibold py-3 rounded-lg transition-colors"
+              >
+                Clear
+              </button>
+            </div>
           </div>
 
           <!-- Loading State -->
           <div id="loading" class="hidden text-center py-8">
-            <p class="text-slate-600">Searching cards...</p>
+            <div class="inline-block">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+            </div>
+            <p class="text-slate-600 mt-2">Searching cards...</p>
           </div>
 
           <!-- Search Results -->
@@ -103,29 +126,124 @@
     </div>
 
     <script src="/env.js"></script>
-    <script type="module">
-      import { searchCards, getSets } from './src/cardSearch.js';
+    <script>
+      const API_BASE = 'https://api.pokemontcg.io/v2';
 
-      // Load sets on page load
-      async function loadSets() {
-        const setFilter = document.getElementById('setFilter');
+      // Search cards function
+      async function searchCards(query, filters = {}) {
+        try {
+          let conditions = [];
+
+          if (query) {
+            conditions.push(`name:"${query}"*`);
+          }
+
+          if (filters.cardNumber) {
+            conditions.push(`number:${filters.cardNumber}`);
+          }
+
+          if (filters.setName) {
+            conditions.push(`q:set.name:"${filters.setName}"*`);
+          }
+
+          if (conditions.length === 0) return [];
+
+          const queryStr = encodeURIComponent(conditions.join(' OR '));
+          const url = `${API_BASE}/cards?q=${queryStr}&pageSize=20`;
+
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+          const data = await response.json();
+          return data.data || [];
+        } catch (error) {
+          console.error('Card search error:', error);
+          return [];
+        }
+      }
+
+      // Get all sets
+      async function getSets() {
+        try {
+          const response = await fetch(`${API_BASE}/sets?pageSize=100`);
+          if (!response.ok) throw new Error(`API error: ${response.status}`);
+          const data = await response.json();
+          return data.data || [];
+        } catch (error) {
+          console.error('Get sets error:', error);
+          return [];
+        }
+      }
+
+      // Update input based on search type
+      function updateSearchInput() {
+        const searchType = document.getElementById('searchType').value;
+        const inputContainer = document.getElementById('inputContainer');
+        
+        let html = '';
+        if (searchType === 'name') {
+          html = `
+            <label class="block text-sm font-semibold text-slate-900 mb-2">Card Name</label>
+            <input 
+              type="text" 
+              id="searchInput" 
+              placeholder="e.g., Pikachu"
+              class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+            />
+          `;
+        } else if (searchType === 'number') {
+          html = `
+            <label class="block text-sm font-semibold text-slate-900 mb-2">Card Number</label>
+            <input 
+              type="text" 
+              id="searchInput" 
+              placeholder="e.g., 102 or 102/150"
+              class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+            />
+          `;
+        } else if (searchType === 'set') {
+          html = `
+            <label class="block text-sm font-semibold text-slate-900 mb-2">Set Name</label>
+            <select 
+              id="searchInput" 
+              class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+            >
+              <option value="">Select a set...</option>
+            </select>
+          `;
+        }
+        
+        inputContainer.innerHTML = html;
+
+        // If set search, populate set dropdown
+        if (searchType === 'set') {
+          populateSetDropdown('searchInput');
+        }
+      }
+
+      // Populate set dropdown
+      async function populateSetDropdown(elementId) {
+        const element = document.getElementById(elementId);
+        if (!element || element.tagName !== 'SELECT') return;
+
         const sets = await getSets();
         sets.forEach(set => {
           const option = document.createElement('option');
           option.value = set.name;
           option.textContent = `${set.name} (${set.printedTotal})`;
-          setFilter.appendChild(option);
+          element.appendChild(option);
         });
       }
 
-      // Search handler
+      // Handle search
       async function handleSearch() {
-        const query = document.getElementById('cardSearch').value.trim();
+        const searchType = document.getElementById('searchType').value;
+        const searchInput = document.getElementById('searchInput').value.trim();
         const setFilter = document.getElementById('setFilter').value;
         const cardNumber = document.getElementById('cardNumberFilter').value.trim();
 
-        if (!query && !setFilter && !cardNumber) {
-          alert('Please enter a search term or filter');
+        if (!searchInput) {
+          alert('Please enter a search value');
           return;
         }
 
@@ -135,12 +253,23 @@
         loading.classList.remove('hidden');
         results.innerHTML = '';
 
+        let cards = [];
         const filters = {};
-        if (setFilter) filters.setName = setFilter;
-        if (cardNumber) filters.cardNumber = cardNumber;
 
-        const cards = await searchCards(query, filters);
-        
+        if (searchType === 'name') {
+          if (setFilter) filters.setName = setFilter;
+          if (cardNumber) filters.cardNumber = cardNumber;
+          cards = await searchCards(searchInput, filters);
+        } else if (searchType === 'number') {
+          filters.cardNumber = searchInput;
+          if (setFilter) filters.setName = setFilter;
+          cards = await searchCards('', filters);
+        } else if (searchType === 'set') {
+          filters.setName = searchInput;
+          if (cardNumber) filters.cardNumber = cardNumber;
+          cards = await searchCards('', filters);
+        }
+
         loading.classList.add('hidden');
 
         if (cards.length === 0) {
@@ -151,14 +280,15 @@
         results.innerHTML = cards.map(card => `
           <div class="bg-slate-50 rounded-lg p-4 border border-slate-200 hover:shadow-md transition-shadow">
             <div class="flex gap-4">
-              ${card.images?.small ? `<img src="${card.images.small}" alt="${card.name}" class="w-20 h-28 object-cover rounded">` : '<div class="w-20 h-28 bg-slate-300 rounded"></div>'}
+              ${card.images?.small ? `<img src="${card.images.small}" alt="${card.name}" class="w-20 h-28 object-cover rounded">` : '<div class="w-20 h-28 bg-slate-300 rounded flex items-center justify-center text-xs text-slate-600">No Image</div>'}
               <div class="flex-1">
                 <h3 class="text-lg font-semibold text-slate-900">${card.name}</h3>
-                <p class="text-sm text-slate-600">Set: ${card.set?.name || 'Unknown'}</p>
-                <p class="text-sm text-slate-600">Card #: ${card.number}/${card.set?.printedTotal || '?'}</p>
-                <p class="text-sm text-slate-600">Rarity: ${card.rarity || 'Not specified'}</p>
+                <p class="text-sm text-slate-600"><strong>Set:</strong> ${card.set?.name || 'Unknown'}</p>
+                <p class="text-sm text-slate-600"><strong>Card #:</strong> ${card.number}/${card.set?.printedTotal || '?'}</p>
+                <p class="text-sm text-slate-600"><strong>Rarity:</strong> ${card.rarity || 'Not specified'}</p>
+                <p class="text-sm text-slate-600"><strong>Type:</strong> ${(card.types || ['Unknown']).join(', ')}</p>
                 <button class="mt-3 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded transition-colors">
-                  Add to Collection
+                  + Add to Collection
                 </button>
               </div>
             </div>
@@ -166,14 +296,27 @@
         `).join('');
       }
 
+      // Clear search
+      function handleClear() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('cardNumberFilter').value = '';
+        document.getElementById('resultsContainer').innerHTML = '';
+      }
+
       // Event listeners
+      document.getElementById('searchType').addEventListener('change', updateSearchInput);
       document.getElementById('searchBtn').addEventListener('click', handleSearch);
-      document.getElementById('cardSearch').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleSearch();
+      document.getElementById('clearBtn').addEventListener('click', handleClear);
+      
+      document.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && e.target.id === 'searchInput') {
+          handleSearch();
+        }
       });
 
       // Load sets on page load
-      loadSets();
+      populateSetDropdown('setFilter');
+      updateSearchInput();
     </script>
   </body>
 </html>
