@@ -24,34 +24,22 @@
           <h2 class="text-3xl font-bold text-slate-900 mb-6">Add to Your Collection</h2>
           
           <div class="space-y-4 mb-6">
-            <!-- Search Type Selection -->
+            <!-- Main Search Bar -->
             <div>
-              <label class="block text-sm font-semibold text-slate-900 mb-2">Search By</label>
-              <select 
-                id="searchType" 
-                class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-              >
-                <option value="name">Card Name (e.g., "Pikachu")</option>
-                <option value="number">Card Number (e.g., "102/150")</option>
-                <option value="set">Set Name (e.g., "Base Set")</option>
-              </select>
-            </div>
-
-            <!-- Dynamic Input/Select -->
-            <div id="inputContainer">
-              <label class="block text-sm font-semibold text-slate-900 mb-2">Card Name</label>
+              <label class="block text-sm font-semibold text-slate-900 mb-2">Search Cards</label>
               <input 
                 type="text" 
-                id="searchInput" 
-                placeholder="Search by card name"
+                id="cardSearch" 
+                placeholder="Search by card name, number (e.g., 102/150), or set name"
                 class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
               />
+              <p class="text-xs text-slate-500 mt-1">Examples: "Pikachu", "102/150", "Base Set"</p>
             </div>
 
-            <!-- Optional Filters -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-200">
+            <!-- Filters -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-200">
               <div>
-                <label class="block text-sm font-semibold text-slate-900 mb-2">Filter by Set (Optional)</label>
+                <label class="block text-sm font-semibold text-slate-900 mb-2">Set (Optional)</label>
                 <select 
                   id="setFilter" 
                   class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -60,30 +48,37 @@
                 </select>
               </div>
               <div>
-                <label class="block text-sm font-semibold text-slate-900 mb-2">Filter by Card # (Optional)</label>
-                <input 
-                  type="text" 
-                  id="cardNumberFilter" 
-                  placeholder="e.g., 102"
+                <label class="block text-sm font-semibold text-slate-900 mb-2">Condition (Optional)</label>
+                <select 
+                  id="conditionFilter" 
                   class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-                />
+                >
+                  <option value="">All Conditions</option>
+                  <option value="mint">Mint</option>
+                  <option value="near-mint">Near Mint</option>
+                  <option value="lightly-played">Lightly Played</option>
+                  <option value="moderately-played">Moderately Played</option>
+                  <option value="heavily-played">Heavily Played</option>
+                  <option value="damaged">Damaged</option>
+                </select>
               </div>
-            </div>
-
-            <!-- Search Button -->
-            <div class="flex gap-3 pt-2">
-              <button 
-                id="searchBtn"
-                class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg transition-colors"
-              >
-                🔍 Search
-              </button>
-              <button 
-                id="clearBtn"
-                class="px-6 bg-slate-300 hover:bg-slate-400 text-slate-900 font-semibold py-3 rounded-lg transition-colors"
-              >
-                Clear
-              </button>
+              <div>
+                <label class="block text-sm font-semibold text-slate-900 mb-2">&nbsp;</label>
+                <div class="flex gap-3 h-full">
+                  <button 
+                    id="searchBtn"
+                    class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg transition-colors"
+                  >
+                    🔍 Search
+                  </button>
+                  <button 
+                    id="clearBtn"
+                    class="px-4 bg-slate-300 hover:bg-slate-400 text-slate-900 font-semibold rounded-lg transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -129,17 +124,23 @@
     <script>
       const API_BASE = 'https://api.pokemontcg.io/v2';
 
-      // Search cards function
+      // Search cards function - accepts any card info
       async function searchCards(query, filters = {}) {
         try {
           let conditions = [];
 
+          // Search by name, number, or set - try to detect what user entered
           if (query) {
-            conditions.push(`name:"${query}"*`);
-          }
-
-          if (filters.cardNumber) {
-            conditions.push(`number:${filters.cardNumber}`);
+            // Check if it looks like a card number (contains / or just digits)
+            if (/^\d+\/?(\d+)?$/.test(query)) {
+              // Card number search
+              const num = query.split('/')[0];
+              conditions.push(`number:${num}`);
+            } else {
+              // Try as name first, or as set name
+              conditions.push(`name:"${query}"*`);
+              conditions.push(`set.name:"${query}"*`);
+            }
           }
 
           if (filters.setName) {
@@ -149,7 +150,7 @@
           if (conditions.length === 0) return [];
 
           const queryStr = encodeURIComponent(conditions.join(' OR '));
-          const url = `${API_BASE}/cards?q=${queryStr}&pageSize=20`;
+          const url = `${API_BASE}/cards?q=${queryStr}&pageSize=25`;
 
           const response = await fetch(url);
           if (!response.ok) throw new Error(`API error: ${response.status}`);
@@ -175,75 +176,26 @@
         }
       }
 
-      // Update input based on search type
-      function updateSearchInput() {
-        const searchType = document.getElementById('searchType').value;
-        const inputContainer = document.getElementById('inputContainer');
-        
-        let html = '';
-        if (searchType === 'name') {
-          html = `
-            <label class="block text-sm font-semibold text-slate-900 mb-2">Card Name</label>
-            <input 
-              type="text" 
-              id="searchInput" 
-              placeholder="e.g., Pikachu"
-              class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          `;
-        } else if (searchType === 'number') {
-          html = `
-            <label class="block text-sm font-semibold text-slate-900 mb-2">Card Number</label>
-            <input 
-              type="text" 
-              id="searchInput" 
-              placeholder="e.g., 102 or 102/150"
-              class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          `;
-        } else if (searchType === 'set') {
-          html = `
-            <label class="block text-sm font-semibold text-slate-900 mb-2">Set Name</label>
-            <select 
-              id="searchInput" 
-              class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-            >
-              <option value="">Select a set...</option>
-            </select>
-          `;
-        }
-        
-        inputContainer.innerHTML = html;
-
-        // If set search, populate set dropdown
-        if (searchType === 'set') {
-          populateSetDropdown('searchInput');
-        }
-      }
-
       // Populate set dropdown
-      async function populateSetDropdown(elementId) {
-        const element = document.getElementById(elementId);
-        if (!element || element.tagName !== 'SELECT') return;
-
+      async function populateSetDropdown() {
+        const setFilter = document.getElementById('setFilter');
         const sets = await getSets();
         sets.forEach(set => {
           const option = document.createElement('option');
           option.value = set.name;
-          option.textContent = `${set.name} (${set.printedTotal})`;
-          element.appendChild(option);
+          option.textContent = `${set.name} (${set.printedTotal} cards)`;
+          setFilter.appendChild(option);
         });
       }
 
       // Handle search
       async function handleSearch() {
-        const searchType = document.getElementById('searchType').value;
-        const searchInput = document.getElementById('searchInput').value.trim();
+        const query = document.getElementById('cardSearch').value.trim();
         const setFilter = document.getElementById('setFilter').value;
-        const cardNumber = document.getElementById('cardNumberFilter').value.trim();
+        const conditionFilter = document.getElementById('conditionFilter').value;
 
-        if (!searchInput) {
-          alert('Please enter a search value');
+        if (!query && !setFilter) {
+          alert('Please enter a search term or select a set');
           return;
         }
 
@@ -253,23 +205,11 @@
         loading.classList.remove('hidden');
         results.innerHTML = '';
 
-        let cards = [];
         const filters = {};
+        if (setFilter) filters.setName = setFilter;
 
-        if (searchType === 'name') {
-          if (setFilter) filters.setName = setFilter;
-          if (cardNumber) filters.cardNumber = cardNumber;
-          cards = await searchCards(searchInput, filters);
-        } else if (searchType === 'number') {
-          filters.cardNumber = searchInput;
-          if (setFilter) filters.setName = setFilter;
-          cards = await searchCards('', filters);
-        } else if (searchType === 'set') {
-          filters.setName = searchInput;
-          if (cardNumber) filters.cardNumber = cardNumber;
-          cards = await searchCards('', filters);
-        }
-
+        const cards = await searchCards(query, filters);
+        
         loading.classList.add('hidden');
 
         if (cards.length === 0) {
@@ -298,25 +238,24 @@
 
       // Clear search
       function handleClear() {
-        document.getElementById('searchInput').value = '';
-        document.getElementById('cardNumberFilter').value = '';
+        document.getElementById('cardSearch').value = '';
+        document.getElementById('setFilter').value = '';
+        document.getElementById('conditionFilter').value = '';
         document.getElementById('resultsContainer').innerHTML = '';
       }
 
       // Event listeners
-      document.getElementById('searchType').addEventListener('change', updateSearchInput);
       document.getElementById('searchBtn').addEventListener('click', handleSearch);
       document.getElementById('clearBtn').addEventListener('click', handleClear);
       
-      document.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && e.target.id === 'searchInput') {
+      document.getElementById('cardSearch').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
           handleSearch();
         }
       });
 
       // Load sets on page load
-      populateSetDropdown('setFilter');
-      updateSearchInput();
+      populateSetDropdown();
     </script>
   </body>
 </html>
