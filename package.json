@@ -1,6 +1,12 @@
 {
-  "name": "tailwind-static-site",
+  "name": "pokemon-tcg-tracker",
   "version": "0.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_USERNAME/pokemon-tcg-tracker.git"
+  },
+  "homepage": "https://YOUR_USERNAME.github.io/pokemon-tcg-tracker",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "dev:css": "node build-css.js --watch",
