@@ -8,8 +8,25 @@
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
-    <div id="root"></div>
+    <main class="min-h-screen flex items-center justify-center">
+      <div class="text-center">
+        <h1 class="text-4xl font-bold text-slate-900">Pokemon TCG Tracker</h1>
+        <p class="mt-4 text-lg text-slate-600">Track your Pokémon card values and trades</p>
+        <div class="mt-8 p-4 bg-slate-100 rounded-lg">
+          <p class="text-sm text-slate-700">Firebase Config Status:</p>
+          <pre id="config" class="mt-2 text-xs text-left bg-white p-3 rounded border border-slate-300 overflow-auto"></pre>
+        </div>
+      </div>
+    </main>
     <script src="/env.js"></script>
-    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Display Firebase config from window.__ENV__
+      const configDisplay = document.getElementById('config');
+      if (typeof window.__ENV__ !== 'undefined') {
+        configDisplay.textContent = JSON.stringify(window.__ENV__, null, 2);
+      } else {
+        configDisplay.textContent = 'Error: window.__ENV__ not loaded';
+      }
+    </script>
   </body>
 </html>
